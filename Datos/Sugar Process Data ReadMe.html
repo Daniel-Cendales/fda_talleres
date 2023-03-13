@@ -1,0 +1,180 @@
+<div id="tabs-wrapper" class="clearfix">                                <h1 class="with-tabs">SUGAR PROCESS DATA</h1>
+</div>                                                  <div class="clearfix">
+<div class="region region-content">
+<div id="block-system-main" class="block block-system clearfix">
+
+
+<div class="content">
+<div id="node-102" class="node node-page">
+
+
+
+
+<div class="content clearfix">
+<div class="field field-name-body field-type-text-with-summary field-label-hidden"><div class="field-items"><div class="field-item even"><p>
+</p>
+<p>
+Sugar was sampled continuously during eight hours to make a mean sample representative for one 'shift' (eight hour period). Samples were taken during the three months of operation (the so-called campaign) in late autumn from a sugar plant in Scandinavia giving a total of 268 samples. The sugar was sampled directly from the final unit operation (centrifuge) of the process.</p>
+<h2>
+</h2>
+<h2>
+Get the data</h2>
+<p>
+The data are available in zipped MATLAB 4.2 format. Download the data and write load data in MATLAB. If you use the data we would appreciate that you report the results to us as a courtesey of the work involved in producing and preparing the data. Also you may want to refer to the data by referring to</p>
+<p>
+<font face="Courier New,Courier">R. Bro, Exploratory study of sugar production using fluorescence spectroscopy and multi-way analysis, <i>Chemom. Intell. Lab. Syst.</i>, 1999, (46), 133-147. (<a href="/sites/default/files/sugar.pdf" style="text-decoration: none;" target="_self">read excerpt</a>)</font></p>
+<p>
+</p>
+<p>
+<font size="2"><a href="http://models.life.ku.dk/sites/default/files/sugar_Process.zip" style="text-decoration: none;" target="_self">Data (Matlab format)</a></font></p>
+<p>
+</p>
+<p>
+The data have also been described in<br />
+</p>
+<ol><li>
+<font face="Courier New,Courier">R. Bro, <i>Multi-way Analysis in the Food Industry. Models, Algorithms and Applications</i>, Ph.D. thesis, University of Amsterdam, 1998.</font></li>
+<li>
+<font face="Courier New,Courier">L. Munck, L. Nørgaard, S. B. Engelsen, R. Bro, C. A. Andersson, Chemometrics in food science – a demonstration of the feasibility of a highly exploratory, inductive evaluation strategy of fundamental scientific significance, <i>Chemom. Intell. Lab. Syst.</i>, 1998, 44, 31-60.</font></li>
+<li>
+<font face="Courier New,Courier">L. Eriksson, J. Trygg, E. Johansson, R. Bro, and S. Wold, Orthogonal Signal Correction, Wavelet Analysis, and Multivariate Calibration of Complicated Process Fluorescence Data, Analytica Chimica Acta 420/2(2000)181-195</font></li>
+</ol><h2>
+Code</h2>
+<p>
+There are 268 samples corresponding approximately to a sample every ieght hour during the three months of operation (autumn 1995). The sample number can be converted to actual time using the matrix <font face="Courier&lt;br /&gt;&#10;New,Courier"> time</font>. For sample (row) number <i>i</i> the actual date of measurement is <font face="Courier New,Courier">Time(<i>i</i>)</font>. This gives the time of sampling as a number <font face="Courier New,Courier">xyyz</font>. x is the month (2:Oct,3:Nov,4:Dec,5:Jan),yy the day, and z the time a day (1:Morning,2:Afternoon,3:Night).</p>
+<p>
+The following matrices are supplied<br />
+</p>
+<table border="0" cols="3"><tbody><tr><td>
+<b>NAME</b></td>
+<td>
+<b>SIZE</b></td>
+<td>
+<b>DESCRIPTION</b></td>
+</tr><tr><td>
+X</td>
+<td>
+268 x 571 x 7</td>
+<td>
+Fluorescence data</td>
+</tr><tr><td>
+DimX</td>
+<td>
+</td>
+<td>
+Size of X</td>
+</tr><tr><td>
+EmAx</td>
+<td>
+1 x 571</td>
+<td>
+Emission labels</td>
+</tr><tr><td>
+ExAx</td>
+<td>
+1 x 7</td>
+<td>
+Excitation labels</td>
+</tr><tr><td>
+Proc</td>
+<td>
+268 x 39 x 7</td>
+<td>
+Process data</td>
+</tr><tr><td>
+DimProc</td>
+<td>
+</td>
+<td>
+Size of Proc</td>
+</tr><tr><td>
+ProcNumber</td>
+<td>
+1 x 88</td>
+<td>
+Code for process variables</td>
+</tr><tr><td>
+Lab</td>
+<td>
+268 x 48 x 7</td>
+<td>
+Lab measurements</td>
+</tr><tr><td>
+DimLab</td>
+<td>
+</td>
+<td>
+Size of Lab</td>
+</tr><tr><td>
+LabNumber</td>
+<td>
+1 x 48</td>
+<td>
+Code for lab measurements</td>
+</tr><tr><td>
+y</td>
+<td>
+268 x 3</td>
+<td>
+Two main quality measurements</td>
+</tr><tr><td>
+Yidx</td>
+<td>
+</td>
+<td>
+Desciption of y</td>
+</tr><tr><td>
+time</td>
+<td>
+</td>
+<td>
+Code for time</td>
+</tr><tr><td>
+readmetime</td>
+<td>
+</td>
+<td>
+Description of time</td>
+</tr></tbody></table><p>
+<br />
+</p>
+<h2>
+Fluorescence data:</h2>
+<p>
+The sugar was dissolved in un-buffered water (2.25g/15mL) and the solution was measured spectrofluorometrically in a 10 by 10 mm cuvette on a PE LS50B spectrofluorometer. Raw non-smoothed data was output from the fluorometer. For every sample the emission spectra from 275-560 nm were measured in 0.5 nm intervals (571 wavelengths) at seven excitation wavelengths (230, 240, 255, 290, 305, 325, 340 nm). The data of all the 265 samples can be arranged in an I × J × K three-way array of specific size 265 × 571 × 7. The first mode refers to samples, the second to emission wavelengths, and the third to excitation wavelengths. The <i>ijk</i>th element in this array corresponds to the measured emission intensity from sample <i>i</i>, excited at wavelength <i>k</i>, and measured at wavelength <i>j</i>. The reason for the large number of emission wavelengths is that the fluorometer used in this study only allows emission in half nanometer steps to be measured. One may, of course, simply use a subset of the wavelengths if physical computer memory is limited.</p>
+<p>
+The fluorescence data are held in the matrix X which is a 267 x 3997 matrix. The first 571 columns are the emission measurements for the first excitation wavelength (340 nm). The last 571 columns are the emission measurements for the last excitation wavelength (230 nm). The vector <font face="Courier&lt;br /&gt;&#10;New,Courier"> EmAx</font> contains the 571 emission wavelengths in nm and the vector <font face="Courier New,Courier">ExAx</font> contains the corresponding seven excitation wavelengths. If you use MATLAB ver. 5 and want to convert the unfolded three-way array simply type <font face="Courier New,Courier">X = reshape(X,DimX)</font>.</p>
+<h2>
+Quality parameters</h2>
+<p>
+Also available were laboratory determinations of the quality of the produced sugar sampled at the same rate as the fluorometrically measured sugar samples. These quality measures are ash content and color. Ash content is determined by conductivity and is a measure of the amount of inorganic impurities in the refined sugar. It is given in percentages. Color is determined as the absorption at 420 nm of a membrane-filtered solution of sugar adjusted to pH 7. The color is given as a unit derived from the absorbance where 45 is the maximum allowed color of standard sugar. It gives an indication of the miscoloring of the sugar. This color is by far so low, that it is of no importance for the consumer, but it is of interest for process control and for retailers.</p>
+<p>
+The matrix <font face="Courier New,Courier">y</font> holds the color and ash measurements.</p>
+<h2>
+Auxiliary laboratory measurements</h2>
+<p>
+A number of auxiliary variables are available. These are laboratory measurements and are given in a 268 x 48 x 7 three-way array where 268 is the number of samples, 48 the number of variables, and 7 the lags. That is, the first 268 x 48 matrix holds the measurements at the same time as given in the time variable. The second 268 x 48 matrix gives the values measured one hour before etc. NaN is used for missing values.</p>
+<h2>
+Automatically sampled process variables</h2>
+<p>
+The process variables include temperature, flow, and pH determinations at different points in the process. Typically these variables are noisy and sampled at quite different rates. The process data are given in a 268 x 39 x 7 three-way array where 268 is the number of samples, 39 the number of variables, and 7 the lags. That is, the first 268 x 39 matrix holds the measurements at the same time as given in the time variable. The second 268 x 39 matrix gives the values measured one hour before etc. NaN is used for missing values.</p>
+<h2>
+Known upsets in production</h2>
+<p>
+Break-downs are known to have occured at the following dates:<br />
+30/9, 1/10, 2/10, 4/10, 5/10, 11/10, 18/10, 25/10, 3/11, 4/11, 8/11, 9/11, 16/11, 17/11, 18/11, 23/11, 5/12, 6/12, 7/12, 9/12, 13/12, 22/12<br />
+</p>
+<p>
+<i><font size="-1">Copyright © 1996-2002 <a href="http://www.models.life.ku.dk/users/rasmus">Rasmus Bro</a> (<a href="mailto:rb@kvl.dk">rb@kvl.dk</a>). All rights reserved</font></i></p>
+</div></div></div>  </div>
+
+<div class="clearfix">
+<div class="links"></div>
+
+</div>
+
+</div>
+</div>
+</div>
+</div>
+</div>
