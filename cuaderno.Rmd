@@ -1,0 +1,623 @@
+---
+title: Taller \# 2
+author: 
+    - Juan Sebastian Gómez D.
+    - Daniel Felipe Cendales G.
+output: 
+    html_notebook:
+        toc: true
+        toc_depth: 2
+        toc_float: true
+        number_sections: true
+---
+
+```{r Configuraciones globales, echo = FALSE}
+# Configuraciones generales
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
+
+# Cargue de librerías
+```
+
+```{r}
+carga_e_instala <- function(x){
+    no_instalados <- !(x %in% installed.packages()[, 1])
+    if(any(no_instalados)){
+        install.packages(x[no_instalados])
+    }
+    sapply(x, library, logical.return = TRUE, character.only = TRUE)
+}
+
+paquetes <- c('fda', 'fda.usc', 'VGAM', 'ggplot2', 'plotly')
+carga_e_instala(paquetes)
+```
+
+# Producción de Azúcar {.tabset}
+
+**Información del conjunto de datos:** azúcar se ha disuelto en agua sin amortiguar y la solución se midió espectrofluorométricamente en una cubeta de 10 $\times$ 10 $mm^2$. Los datos en bruto se midieron con un fluorómetro. Para cada muestra, los espectros de emisión se midieron en intervalos de $0.5$ nm en siete ondas de excitación.
+
+Es decir, tenemos una muestra de tamaño 265, en 571 puntos para cada una de las 7 ondas de longitudes de excitación.
+
+En nuestro caso, decidimos tomar el nivel de excitación correspondiente al nivel de onda 340. Para entender un poco mejor los datos, visualicemos la información sin haberla tratado (i.e. en bruto).
+
+```{r Lectura de datos y Config. inicial}
+# Lectura de datos
+ruta <- './Datos/datos.txt'
+# columnas <- rep(c('NULL', 'numeric', 'NULL'), 
+#                 c(571 * 5, 571, 571))           # Columnas a leer
+# datos <- read.table(file = ruta, colClasses = columnas)
+datos1 <- read.table(colClasses = rep(c('NULL', 'numeric'), 
+                                      c(6, 1)*571), file = ruta)
+
+# Gráficos
+t_rango <- seq(275, 560, by = 0.5)
+matplot(x = t_rango, y = t(datos1), type = 'p', 
+        pch = 19, cex = 0.2, frame = FALSE, 
+        main = 'Datos observados',
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia')
+```
+
+Después de visualizar las funciones (sin suavizar) consideramos como más acertado usar una base de funciones *B-Spline* para llevar a cabo el suavizado, pues en los datos no se perciben comportamientos cíclicos (o sinusoidales). Como apunte adicional, mencionamos que para llevar a cabo el ajuste nos bastó con usar polinomios de grado 3 (orden 4) y para la parte que presentaba un apuntamiento muy alto usamos más *breakpoints*.
+
+```{r Creación de base}
+library(fda)                    # Librería
+
+# Base que se va a usar
+bk <- c(275, 285, 300, 320, 360.5, 389, 470, 520, 560)
+bk1 <- c(seq(275, 389, by = 28.5), 470, 520, 560)
+base_bsp <- create.bspline.basis(breaks = bk, 
+                                 norder = 4)
+```
+
+A continuación podemos ver las versiones suavizadas de la muestra en cuestión.
+
+```{r}
+ajuste <- Data2fd(y = as.matrix(t(datos1)), basisobj = base_bsp, 
+                  argvals = t_rango)
+plot(ajuste, frame = FALSE, main = 'Curvas Suavizadas', ylab = 'Fluorescencia',
+     xlab = 'Emisión espectral')
+```
+
+Para contrastar las estimaciones, vamos a superponer los datos sin tratar, junto con las respectivas curvas suavizadas.
+
+```{r}
+# Datos en bruto
+matplot(x = t_rango, y = t(datos1), type = 'p', 
+        pch = 19, cex = 0.2, frame = FALSE, 
+        main = 'Muestras y curvas suavizadas asociadas', 
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia',
+        col = 'black')
+
+# Respectivas curvas suavizadas
+lines(ajuste, lwd = 0.8, col = 'midnightblue')
+legend(legend = c('Sin tratar', 'Suavizadas'), lwd = 2, 
+       col = c('black', 'midnightblue'),
+       x = 'topright', bg = 'gray82', box.col = 'white', 
+       lty = c(1, 2), text.col = c('black', 'midnightblue'))
+```
+
+## Función de media
+
+La función de media $\overline{x(t)}$ se presenta a continuación
+
+```{r}
+#  Extraemos los objetos ajustados
+ajuste_detallado <- smooth.basis(argvals = t_rango, y = t(datos1), fdParobj = base_bsp)
+
+# Funciones ajustadas
+f_hat <- eval.fd(evalarg = t_rango, fdobj = ajuste_detallado$fd)
+colnames(f_hat) <- paste0('v', 1:ncol(f_hat))
+
+# matplot(x = t_rango, y = f_hat, col = 'red', lwd = 0.5, add = TRUE, type = 'l')
+matplot(x = t_rango, y = t(datos1), type = 'p', 
+        pch = 19, cex = 0.2, frame = FALSE, 
+        main = 'Media y datos originales', 
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia',
+        col = 'gray')
+
+# Agregamos la función de media
+y_media <- apply(X = f_hat, MARGIN = 1, mean)
+lines(x = t_rango, y = y_media, col = 'black', lwd = 3)
+legend(x = 'topright', legend = c('Media', 'Datos originales'), lwd = c(3, NA), 
+       col = c('black', 'gray'), lty = c(1, NA), box.col = 'white', 
+       pch = 19, pt.cex = c(NA, 0.2))
+
+# Boxplot funcional
+fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), frame = FALSE, 
+       main = 'Boxplot funcional', xlim = range(t_rango),
+       plot = FALSE) -> bp_funcional
+order(bp_funcional$depth) -> centrales
+```
+
+## Función de media recortada al 10%
+
+Veremos la media recortada, que corresponde al cálculo de la media despúes de haber omitida una cantidad de observaciones (en este, el 10% de las observaciones *menos centrales*). Vemos que las funciones menos centrales, parecen mostrar un comportamiento, más apuntados en alguna parte o la parte central en lugar de ser decreciente crece.
+
+```{r}
+# Datos sin suavizar
+matplot(x = t_rango, y = f_hat[, centrales[1:26]], type = 'l', 
+        pch = 19, cex = 0.2, frame = FALSE, lty = 1, lwd = 0.8,
+        col = 'cyan2', main = 'Media recortada y datos originales', 
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia')
+# Media recortada
+y_mediarec <- apply(X = f_hat[, -centrales[1:26]], MARGIN = 1, mean)
+
+# Funciones graficadas
+lines(x = t_rango, y = y_media, col = 'black', lwd = 1, lty = 2)
+lines(x = t_rango, y = y_mediarec, lwd = 1, col = 'blue')
+
+# Identificamos cada curva
+legend(x = 'topright', legend = c('Media recortada', 'Media', 'Datos originales'), 
+       lwd = c(1, 1, 0.8), col = c('blue', 'black', 'cyan2'), 
+       lty = c(1, 2, 1), box.col = 'white') 
+       #pch = 19, pt.cex = c(NA, NA, 0.2))
+```
+
+## Función de varianza
+
+Se calculó usando todos los datos.
+
+```{r}
+# Función de varianza
+f_var <- apply(X = f_hat, MAR = 1, FUN = var)
+
+# Graficamos
+plot(x = t_rango, y = f_var, frame = FALSE, main = 'Varianza estimada', 
+     xlab = 'Emisión espectral', type = 'l', ylab = '')
+```
+
+Podemos ver igualmente, una gráfica de una "banda de confianza" (abusamos de términología para orientar la construcción del gráfico, pero no es tal).
+
+```{r}
+# Gráfica de datos sin suavizar
+matplot(x = t_rango, y = t(datos1), type = 'p', 
+        pch = 19, cex = 0.2, frame = FALSE, 
+        col = 'gray', main = '\"Banda de confianza\"', 
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia')
+
+# Media y bandas
+lines(x = t_rango, y = y_media, col = 'black', lwd = 2, lty = 1)
+matlines(x = t_rango, y = cbind(y_media - 1.96*sqrt(f_var), y_media + 1.96*sqrt(f_var)), 
+         col = 'blue', lty = 1, lwd = 2)
+legend(x = "topright", lty = 1, lwd = 2, col = c('blue', 'black'), box.col = 'white', 
+       legend = c('Media', 'Límites'), bg = 'gray')
+```
+
+## Función de covarianza
+
+Mostramos la superficie obtenida. Con la función *persp* obtenemos una figura no muy agradable. Sin embargo, usaremos la función *plot_ly* que graficará la superficie en una página web y tomamos capturas de pantalla.
+
+```{r}
+# Función de autocovarianza
+cov_f <- cov(t(f_hat))
+
+# persp(x = t_rango[seq(1, 571, by = 5)], y = t_rango[seq(1, 571, by = 5)], 
+#       z = z, phi = 25, theta = 44, xlab = 'Emisión espectral', 
+#       ylab = 'Emisión espectral', zlab = 'cov(t, s)', 
+#       ticktype = 'detailed', col = 'lightblue')
+
+g1 <- plot_ly(x = ~t_rango, y = ~t_rango, z = ~cov_f, showlegend = FALSE)
+ g1 %>% add_surface() %>%
+    layout(scene = list(xaxis = list(title = 'Emisión espectral'),
+                                     yaxis = list(title = 'Emisión espectral'),
+                                     zaxis = list(title = 'covarianza')))
+```
+
+## La función de mediana
+
+Corresponde a la estimación con la mayor densidad de todas las estimaciones.
+
+```{r}
+# Mediana
+y_mediana <- f_hat[, which.max(bp_funcional$depth)]
+
+# Grafiquemos las 3 funciones
+matplot(x = t_rango, y = cbind(y_mediarec, y_media, y_mediana), lwd = c(1, 1, 2),
+        col = c('black', 'blue', 'brown'), type = 'l', frame = FALSE, lty = 1, 
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia', 
+        main = 'Medidas de tendencia central')
+
+legend(x = 'topright', legend = c('Mediana', 'Media', 'Media recortada'), 
+       lwd = c(2, 1, 1), col = c('brown', 'blue', 'black'),
+       box.col = 'white')
+```
+
+## Funciones cuantiles 90% y 95%
+
+En el mismo gráfico presentamos las funciones de los cuantiles solicitados.
+
+```{r}
+# Gráfico de base
+matplot(x = t_rango, y = f_hat, type = 'l', 
+        pch = 19, cex = 0.2, frame = FALSE, 
+        main = 'Cuantiles', lty = 1,
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia',
+        col = 'gray')
+
+cuant_95 <- cbind(apply(X = f_hat[, -centrales[1:13]], MAR = 1, min), 
+                  apply(X = f_hat[, -centrales[1:13]], MAR = 1, max))
+matlines(x = t_rango, y = cuant_95, col = 'blue', lwd = 3, lty = 1)
+
+# Cuantiles 90%
+cuant_90 <- cbind(apply(X = f_hat[, -centrales[1:26]], MAR = 1, min), 
+                  apply(X = f_hat[, -centrales[1:26]], MAR = 1, max))
+matlines(x = t_rango, y = cuant_90, col = 'red', lwd = 2, lty = 1)
+legend(x = 'topright', lwd = 3:1, col = c('blue', 'red', 'gray'), 
+       legend = c('Cuantiles 95%', 'Cuantiles 90%', 'Datos'), 
+       box.col = 'white')
+```
+
+## Región central 0.75
+
+```{r}
+# Base :v
+matplot(x = t_rango, y = f_hat, type = 'l', pch = 19, cex = 0.2, 
+        frame = FALSE, main = 'Región 0.75', lty = 1,
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia',
+        col = 'white')
+cuant_75 <- cbind(apply(X = f_hat[, -centrales[1:67]], MAR = 1, min), 
+                  apply(X = f_hat[, -centrales[1:67]], MAR = 1, max))
+polygon(x = c(t_rango, t_rango[length(t_rango):1]), 
+        y = c(cuant_75[, 1], (cuant_75[, 2])[length(t_rango):1]), 
+        border = 'midnightblue', angle = 45, col = 'midnightblue', density = 50)
+```
+
+## Boxplot funcional y outliers
+
+Los números que aparecen en la leyenda son los identificadores de las funciones $\widehat{x}$ consideradas como atípicas. En este caso, podemos considerar que se tratan de *outliers parciales*. Esto lo podemos ver con las observaciones 131, 71 y 10, pues hay una región  (intervalo 350-450 aproximadamente) en la que las curvas o bien decrecen de forma muy suave o bien se comportan de forma creciente. En cambio, el comportamiento de los individios 14 y 16 es más complejo de entender porqué son *outliers*.
+
+```{r}
+# Boxplot funcional
+fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
+       frame = FALSE, main = 'Boxplot funcional', 
+       xlim = range(t_rango), outliercol = 'white', 
+       barcol = adjustcolor('midnightblue', alpha.f = 0.2), 
+       color = adjustcolor('brown', alpha.f = 0.2),
+       xlab = 'Emisión espectral', 
+       ylab = 'Fluoresencia') -> bp_funcional
+matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = c(1, 2, 2, 1, 1), 
+         lwd = 3,
+         col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'))
+legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 3,
+       col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'), 
+       ncol = 2, cex = 0.8, box.col = 'white', lty = c(1, 2, 2, 1, 1),
+       bg = 'azure1')
+```
+
+Podemos resaltar que los individuos 14 y 16 están entre los 3 elementos con menor profundidad (aproximadamente un 1.2%).
+
+## Boxplot funcional ajustado y outliers
+
+No logramos hacer el cálculo de la matriz de covarianzas robusta y por ende no pudimos presentar la metodología propuesta en las diapositivas.
+
+Como alternativa, proponemos basarnos en técnicas de remuestreo para estimar el boxplot sin usar los que parecen ser datos atípicos y definir el valor del *hiperparámetro* F.
+
+Los gráficos nos ayudan a ver el efecto de haber cambiado el factor $F$ de 1.5 a 1.83 y vemos que la proporción de datos catalogados como atípicos cuando no lo son pasa de un 5% a un 2%.
+
+```{r}
+# Fijamos semilla
+set.seed(718)
+
+# Índices sobre los que vamos a muestrear
+ind <- (1:ncol(f_hat))[-bp_funcional$outpoint]
+
+# Remuestreo
+rem <- sample(x = ind, size = 100, replace = TRUE)
+
+# Selección de observaciones
+f_rem <- f_hat[, rem]
+
+# Boxplot
+par(mfrow = c(1, 2))
+fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
+       frame = FALSE, xlab = 'Emisión espectral', cex.axis = 0.7,
+       cex.lab = 0.7,
+       ylab = 'Fluoresencia', main = 'Remuestreo')$outpoint
+# colnames(f_rem)[c(17, 40, 55, 69, 85)]
+legend(x = 'topright', legend = 'Outliers: 5%', box.col = 'white', 
+       bg = 'cyan2', cex = 0.7)
+
+# Cambiamos los factores
+fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
+       frame = FALSE, xlab = 'Emisión espectral', factor = 1.83,
+       cex.axis = 0.7, cex.lab = 0.7,
+       ylab = 'Fluoresencia', main = 'Reajuste de factor F')$outpoint
+# colnames(f_rem)[c(17, 40, 55, 69, 85)]
+legend(x = 'topright', legend = 'Outliers: 2%', box.col = 'white',
+       bg = 'cyan2', cex = 0.7)
+```
+
+Mostramos a continuación el boxplot resultante al modificar el factor F.
+
+```{r}
+# Boxplot funcional
+fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
+       frame = FALSE, main = 'Boxplot funcional ajustado', 
+       xlim = range(t_rango), factor = 1.83,
+       outliercol = 'white', 
+       barcol = adjustcolor('midnightblue', alpha.f = 0.2), 
+       color = adjustcolor('brown', alpha.f = 0.2),
+       xlab = 'Emisión espectral', 
+       ylab = 'Fluoresencia') -> bp_funcional
+matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = 1, 
+         lwd = 3,
+         col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'))
+legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 3,
+       col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'), 
+       cex = 0.8, box.col = 'white', lty = 1,
+       bg = 'azure1')
+```
+
+# Artículo
+
+**2. Leer, comprender y replicar el siguiente artículo:**
+Aguilera, A. M., & Aguilera-Morillo, M. C. (2013). Comparative study of
+different B-spline approaches for functional data. Mathematical and
+Computer Modelling, 58(7-8), 1568-1579.
+
+Primero la simulación
+
+se generarn R y theta
+
+```{r}
+R<-rrayleigh(1, scale = sqrt(0.3))
+theta<-runif(1,0,2*pi)
+```
+
+ahora la funcion
+
+```{r}
+
+true_functions <- function(x){R*cos(2*pi*x+theta)}
+true_functions_2 <- function(x,R_in,theta_in){R_in*cos(2*pi*x+theta_in)}
+
+```
+
+la simulada
+
+```{r}
+simulated_functions <- function(lenght.out=51,R_in,theta_in){
+errors<-rnorm(lenght.out,mean = 0, sd=sqrt(0.07))
+leng_time=seq(0,1,len=lenght.out)
+values<-c()
+for (x in 1:lenght.out){
+  values<-append(values,R_in*cos(2*pi*leng_time[x]+theta_in)+errors[x])
+}
+
+return(values)
+  }
+```
+Se genera la funcion simulada
+
+```{r}
+simulated_curve<-data.frame(x=seq(0,1,len=51),y=simulated_functions(R_in=R,theta_in=theta),cat="Simulated function")
+```
+
+se crea la base 
+
+**Regression Splines**
+```{r}
+create_regression<-function(nbasis,curve){
+  basisobj = create.bspline.basis(c(0,1),nbasis)
+  ajuste <- Data2fd(y = curve$y, basisobj =basisobj, 
+                  argvals = seq(0,1,len=51))
+  df <- data.frame(x=seq(0,1,len=51), y = predict(ajuste, newdata=seq(0,1,len=51)),cat=paste(as.character(nbasis),"basic knots"))
+  return(df)
+}
+
+reg_5<-create_regression(5,simulated_curve)
+reg_15<-create_regression(15,simulated_curve)
+reg_25<-create_regression(25,simulated_curve)
+```
+
+
+funcion
+
+
+
+se grafica la primera
+```{r}
+ggplot(data.frame(x=c(0,1),cat="True function"), aes(x=x,colour=cat)) + stat_function(fun=true_functions)+ geom_line(data = simulated_curve,linetype = "dotted",aes(x=x,y=y,colour=cat))+ geom_line(data = reg_5,linetype = "dashed",aes(x=x,y=y,colour=cat))+ geom_line(data = reg_15,linetype = "longdash",aes(x=x,y=y,colour=cat))+ geom_line(data = reg_25,linetype = "dotdash",aes(x=x,y=y,colour=cat))+
+  scale_color_manual(name = "Leyend", values = c("True function"="black","Simulated function" = "orange", "5 basic knots" = "blue","15 basic knots"="red","25 basic knots"="green"))
+```
+
+Generar 100 muestras
+
+Se genera la función
+
+```{r}
+samples_regression<-function(nbasis_in){
+ R_aux<-rrayleigh(1, scale = sqrt(0.3))
+ theta_aux<-runif(1,0,2*pi)
+ simulated_curve_aux<-data.frame(x=seq(0,1,len=51),y=simulated_functions(R_in=R_aux,theta_in=theta_aux),cat="Simulated function")
+ return(list(create_regression(nbasis_in,simulated_curve_aux)))
+}
+
+```
+ahora sí las muestras
+
+```{r}
+samples_reg_5<-list()
+samples_reg_15<-list()
+samples_reg_25<-list()
+for(i in 1:100){
+  samples_reg_5<-append(samples_reg_5,list(samples_regression(5)))
+  samples_reg_15<-append(samples_reg_15,list(samples_regression(15)))
+  samples_reg_25<-append(samples_reg_25,list(samples_regression(25)))
+}
+```
+
+
+
+**Smoothing Splines**
+
+
+```{r}
+create_sm_splines<-function(nbasis,curve,d=2,lambda=10^(-2)){
+  basisobj = create.bspline.basis(c(0,1),nbasis)
+  fdParobj = fdPar(basisobj, d, lambda)
+  smoothlistnowt = smooth.basis(seq(0,1,len=51),  curve$y, fdParobj)
+  ajuste <- smoothlistnowt$fd
+  df <- data.frame(x=seq(0,1,len=51), y = predict(ajuste, newdata=seq(0,1,len=51)),cat=paste(as.character(nbasis),"basic knots"),gcv=smoothlistnowt$gcv)
+  return(df)
+}
+
+reg_5<-create_sm_splines(5,simulated_curve)
+reg_15<-create_sm_splines(15,simulated_curve)
+reg_25<-create_sm_splines(25,simulated_curve)
+```
+
+
+graficar
+
+```{r}
+ggplot(data.frame(x=c(0,1),cat="True function"), aes(x=x,colour=cat)) + stat_function(fun=true_functions)+ geom_line(data = simulated_curve,linetype = "dotted",aes(x=x,y=y,colour=cat))+ geom_line(data = reg_5,linetype = "dashed",aes(x=x,y=y,colour=cat))+ geom_line(data = reg_15,linetype = "longdash",aes(x=x,y=y,colour=cat))+ geom_line(data = reg_25,linetype = "dotdash",aes(x=x,y=y,colour=cat))+
+  scale_color_manual(name = "Leyend", values = c("True function"="black","Simulated function" = "orange", "5 basic knots" = "blue","15 basic knots"="red","25 basic knots"="green"))
+```
+
+Se generan 100 muestras
+
+```{r}
+samples_smoothing<-function(nbasis_in){
+ R_aux<-rrayleigh(1, scale = sqrt(0.3))
+ theta_aux<-runif(1,0,2*pi)
+ true_func_aux=true_functions_2(seq(0,1,len=51),R_aux,theta_aux)
+ simulated_curve_aux<-data.frame(x=seq(0,1,len=51),y=simulated_functions(R_in=R_aux,theta_in=theta_aux),cat="Simulated function")
+ sm_aux=create_sm_splines(nbasis_in,simulated_curve_aux)
+ reg_aux=create_regression(nbasis_in,simulated_curve_aux)
+ return(list(true_f=true_func_aux,reg_spl=reg_aux$y,y=simulated_curve_aux$y,y_hat=sm_aux$y,gcv=sm_aux$gcv[1]))
+}
+```
+ahora sí las muestras
+
+```{r}
+samples_smooth_5<-list()
+samples_smooth_15<-list()
+samples_smooth_25<-list()
+for(i in 1:100){
+  samples_smooth_5<-append(samples_smooth_5,list(samples_smoothing(5)))
+  samples_smooth_15<-append(samples_smooth_15,list(samples_smoothing(15)))
+  samples_smooth_25<-append(samples_smooth_25,list(samples_smoothing(25)))
+}
+```
+generar gcv's
+
+```{r}
+aux_basis_5<-c()
+aux_basis_15<-c()
+aux_basis_25<-c()
+for(i in 1:100){
+  aux_basis_5<-append(aux_basis_5,samples_smooth_5[[i]]$gcv)
+  aux_basis_15<-append(aux_basis_15,samples_smooth_15[[i]]$gcv)
+  aux_basis_25<-append(aux_basis_25,samples_smooth_25[[i]]$gcv)
+}
+
+df_gcv<-as.data.frame(c(aux_basis_5,aux_basis_15,aux_basis_25))
+df_gcv$basis<-c(rep("5 basic knots",100),rep("15 basic knots",100),rep("25 basic knots",100))
+colnames(df_gcv)<-c("value","basis")
+
+```
+
+Generar matriz para cada base
+
+
+```{r}
+mat_basis_5<-c()
+mat_basis_15<-c()
+mat_basis_25<-c()
+mat_basis_reg_5<-c()
+mat_basis_reg_15<-c()
+mat_basis_reg_25<-c()
+mat_basis_sm_5<-c()
+mat_basis_sm_15<-c()
+mat_basis_sm_25<-c()
+for(i in 1:100){
+  mat_basis_5<-rbind(mat_basis_5,samples_smooth_5[[i]]$true_f)
+  mat_basis_15<-rbind(mat_basis_15,samples_smooth_15[[i]]$true_f)
+  mat_basis_25<-rbind(mat_basis_25,samples_smooth_25[[i]]$true_f)
+  mat_basis_reg_5<-rbind(mat_basis_reg_5,samples_smooth_5[[i]]$reg_spl)
+  mat_basis_reg_15<-rbind(mat_basis_reg_15,samples_smooth_15[[i]]$reg_spl)
+  mat_basis_reg_25<-rbind(mat_basis_reg_25,samples_smooth_25[[i]]$reg_spl)
+  mat_basis_sm_5<-rbind(mat_basis_sm_5,samples_smooth_5[[i]]$y_hat)
+  mat_basis_sm_15<-rbind(mat_basis_sm_15,samples_smooth_15[[i]]$y_hat)
+  mat_basis_sm_25<-rbind(mat_basis_sm_25,samples_smooth_25[[i]]$y_hat)
+}
+
+```
+
+obtener funcion media
+
+```{r}
+mean_basis_5<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_5, MARGIN = 2, mean),curva="Mean true function")
+mean_basis_15<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_15, MARGIN = 2, mean),curva="Mean true function")
+mean_basis_25<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_25, MARGIN = 2, mean),curva="Mean true function")
+mean_basis_reg_5<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_reg_5, MARGIN = 2, mean),curva="Mean Regression Splines")
+mean_basis_reg_15<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_reg_15, MARGIN = 2, mean),curva="Mean Regression Splines")
+mean_basis_reg_25<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_reg_25, MARGIN = 2, mean),curva="Mean Regression Splines")
+mean_basis_sm_5<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_sm_5, MARGIN = 2, mean),curva="Mean Smoothings Splines")
+mean_basis_sm_15<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_sm_15, MARGIN = 2, mean),curva="Mean Smoothings Splines")
+mean_basis_sm_25<-data.frame(x=seq(0,1,len=51),y=apply(X = mat_basis_sm_25, MARGIN = 2, mean),curva="Mean Smoothings Splines")
+
+```
+
+
+Graficar boxplot
+
+```{r}
+p<-ggplot(df_gcv, aes(x=basis, y=value, fill=basis)) +
+  geom_boxplot()
+p
+```
+graficar con 5 bases
+
+```{r}
+ggplot(mean_basis_5, aes(x=x,y=y,colour=curva)) +geom_line()+ geom_line(data = mean_basis_reg_5,linetype = "dotted",aes(x=x,y=y,colour=curva))+ geom_line(data = mean_basis_sm_5,linetype = "dashed",aes(x=x,y=y,colour=curva))+
+  scale_color_manual(name = "Leyend", values = c("Mean true function"="black","Mean Regression Splines" = "green", "Mean Smoothings Splines" = "blue"))
+
+
+```
+graficar con 15 bases
+```{r}
+ggplot(mean_basis_15, aes(x=x,y=y,colour=curva)) +geom_line()+ geom_line(data = mean_basis_reg_15,linetype = "dotted",aes(x=x,y=y,colour=curva))+ geom_line(data = mean_basis_sm_15,linetype = "dashed",aes(x=x,y=y,colour=curva))+
+  scale_color_manual(name = "Leyend", values = c("Mean true function"="black","Mean Regression Splines" = "green", "Mean Smoothings Splines" = "blue"))
+
+
+```
+
+Graficar con 25 bases
+
+```{r}
+ggplot(mean_basis_25, aes(x=x,y=y,colour=curva)) +geom_line()+ geom_line(data = mean_basis_reg_25,linetype = "dotted",aes(x=x,y=y,colour=curva))+ geom_line(data = mean_basis_sm_25,linetype = "dashed",aes(x=x,y=y,colour=curva))+
+  scale_color_manual(name = "Leyend", values = c("Mean true function"="black","Mean Regression Splines" = "green", "Mean Smoothings Splines" = "blue"))
+
+
+```
+
+
+```{r}
+#Se cargan los datasets
+data(pinch)
+t_rango <- seq(0,1,length.out=20)
+matplot(x = t_rango, y = t(pinch), type = 'o', 
+        pch = 19, cex = 0.5, frame = FALSE, main = 'Muestra', 
+        xlab = 'Emisión espectral', ylab = 'Fluoresencia')
+```
+
+se prueba con las 5, 15 y 25 bases de splines
+```{r}
+base_bsp_5 <- create.bspline.basis(c(0,1),norder = 5)
+base_bsp_15 <- create.bspline.basis(c(0,1),norder = 15)
+base_bsp_20 <- create.bspline.basis(c(0,1),norder = 20)
+plot(base_bsp_20)                  # Visualización
+```
+```{r}
+ys = smooth.basis(argvals=t_rango, y=t(pinch), fdParobj=base_bsp_5)
+Ys = smooth.basis(argvals=t_rango, y=t(pinch), fdParobj=base_bsp_5,
+                  returnMatrix=TRUE)
+```
+54
+```{r}
+ajuste <- Data2fd(y = t(pinch), basisobj = base_bsp_5, 
+                  argvals = t_rango)
+plot(ajuste, frame = FALSE)
+```
+

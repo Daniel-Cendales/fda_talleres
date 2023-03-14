@@ -14,6 +14,11 @@ output:
 knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
 ```
 
+# Primer parte
+
+1. Usando el dataset suministrado, seleccionar un proceso.
+
+
 ## Información del conjunto de datos
 
 El azúcar se disolvió en agua sin amortiguar y la solución se midió espectrofluorométricamente en una cubeta de 10 $\times$ 10 $mm^2$. Los datos en bruto se midieron con un fluorómetro. Para cada muestra, los espectros de emisión se midieron en intervalos de $0.5$ nm en siete ondas de excitación.
@@ -88,6 +93,7 @@ ajuste_detallado <- smooth.basis(argvals = t_rango, y = t(datos1), fdParobj = ba
 
 # Funciones ajustadas
 f_hat <- eval.fd(evalarg = t_rango, fdobj = ajuste_detallado$fd)
+colnames(f_hat) <- paste0('v', 1:ncol(f_hat))
 
 # matplot(x = t_rango, y = f_hat, col = 'red', lwd = 0.5, add = TRUE, type = 'l')
 matplot(x = t_rango, y = t(datos1), type = 'p', 
@@ -166,7 +172,6 @@ legend(x = "topright", lty = 1, lwd = 2, col = c('blue', 'black'), box.col = 'wh
 # Función de autocovarianza
 suppressMessages(library(plotly))
 n <- ncol(datos1)
-z <- matrix(ncol = n, nrow = n)
 
 z <- cov(t(f_hat)[, seq(from = 1, to = 571, by = 5)])
 
@@ -182,7 +187,7 @@ g1 <- plot_ly(x = ~t_rango[seq(1, 571, by = 5)], y = ~t_rango[seq(1, 571, by = 5
 #                                         yaxis = list(title = 'Emisión espectral'),
 #                                         zaxis = list(title = 'covarianza')), 
 #               annotations = list(text = 'Intensidad', showarrow = FALSE, 
-#                                  xref = 'paper', yref = 'paper', 
+#                                  xref = 'paper', yref = 'paper'))
 ```
 
 ```{r, out.width = '80%'}
@@ -244,19 +249,147 @@ polygon(x = c(t_rango, t_rango[length(t_rango):1]),
         border = 'midnightblue', angle = 45, col = 'midnightblue', density = 50)
 ```
 
-+ **Boxplot funcional y outliers:**
++ **Boxplot funcional y outliers:** los números que aparecen en la leyenda son los identificadores de las funciones $\widehat{x}$ consideradas como atípicas. En este caso, podemos considerar que se tratan de *outliers parciales*. Esto lo podemos ver con las observaciones 131, 71 y 10, pues hay una región  (intervalo 350-450 aproximadamente) en la que las curvas o bien decrecen de forma muy suave o bien se comportan de forma creciente. En cambio, el comportamiento de los individios 14 y 16 es más complejo de entender porqué son *outliers*.
 
 ```{r}
 # Boxplot funcional
-fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), frame = FALSE, 
-       main = 'Boxplot funcional', xlim = range(t_rango), 
-       outliercol = c('red', 'pink', 'orange', 'cyan2', 'gray'), 
-       barcol = 'midnightblue', 
-       color = 'brown') -> bp_funcional
-matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = 1, lwd = 2,
-         col = c('red', 'pink', 'orange', 'cyan2', 'gray'))
-legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 2,
-       col = c('red', 'pink', 'orange', 'cyan2', 'gray'), 
-       ncol = 2, cex = 0.8, box.col = 'white')
+fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
+       frame = FALSE, main = 'Boxplot funcional', 
+       xlim = range(t_rango), outliercol = 'white', 
+       barcol = adjustcolor('midnightblue', alpha.f = 0.2), 
+       color = adjustcolor('brown', alpha.f = 0.2),
+       xlab = 'Emisión espectral', 
+       ylab = 'Fluoresencia') -> bp_funcional
+matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = c(1, 2, 2, 1, 1), 
+         lwd = 3,
+         col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'))
+legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 3,
+       col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'), 
+       ncol = 2, cex = 0.8, box.col = 'white', lty = c(1, 2, 2, 1, 1),
+       bg = 'azure1')
 ```
+
+Podemos resaltar que los individuos 14 y 16 están entre los 3 elementos con menor profundidad (aproximadamente un 1.2%).
+
++ **Boxplot funcional ajustado y outliers:** la estimación robusta de la matriz de covarianza la llevamos a cabo apartando las funciones que arriba consideramos como atípicas. Sin embargo, la simulación de datos no la logramos hacer como se menciona en las diapositivas.
+
+Como alternativa, proponemos basarnos en técnicas de remuestreo para estimar el boxplot sin usar los datos atípicos y definir el valor del *hiperparámetro* F.
+
+Los gráficos nos ayudan a ver el efecto de haber cambiado el factor $F$ de 1.5 a 1.83 y vemos que la probabilidad de designar un dato atípico cuando no lo es se reduce a un 2%.
+
+```{r}
+# Fijamos semilla
+set.seed(718)
+
+# Índices sobre los que vamos a muestrear
+ind <- (1:ncol(f_hat))[-bp_funcional$outpoint]
+
+# Remuestreo
+rem <- sample(x = ind, size = 100, replace = TRUE)
+
+# Selección de observaciones
+f_rem <- f_hat[, rem]
+
+# Boxplot
+par(mfrow = c(1, 2))
+fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
+       frame = FALSE, xlab = 'Emisión espectral', cex.axis = 0.7,
+       cex.lab = 0.7,
+       ylab = 'Fluoresencia', main = 'Remuestreo')$outpoint
+# colnames(f_rem)[c(17, 40, 55, 69, 85)]
+legend(x = 'topright', legend = 'Outliers: 5%', box.col = 'white', 
+       bg = 'cyan2', cex = 0.7)
+
+# Cambiamos los factores
+fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
+       frame = FALSE, xlab = 'Emisión espectral', factor = 1.83,
+       cex.axis = 0.7, cex.lab = 0.7,
+       ylab = 'Fluoresencia', main = 'Reajuste de factor F')$outpoint
+# colnames(f_rem)[c(17, 40, 55, 69, 85)]
+legend(x = 'topright', legend = 'Outliers: 2%', box.col = 'white',
+       bg = 'cyan2', cex = 0.7)
+```
+
+Mostramos a continuación el boxplot resultante al modificar el factor F.
+
+```{r}
+# Boxplot funcional
+fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
+       frame = FALSE, main = 'Boxplot funcional ajustado', 
+       xlim = range(t_rango), factor = 1.83,
+       outliercol = 'white', 
+       barcol = adjustcolor('midnightblue', alpha.f = 0.2), 
+       color = adjustcolor('brown', alpha.f = 0.2),
+       xlab = 'Emisión espectral', 
+       ylab = 'Fluoresencia') -> bp_funcional
+matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = 1, 
+         lwd = 3,
+         col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'))
+legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 3,
+       col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'), 
+       cex = 0.8, box.col = 'white', lty = 1,
+       bg = 'azure1')
+```
+
+
+```{r}
+# Estimación robusta
+t1 <- sort(sample(x = 1:571, size = 100))
+
+cov_rob0 <- cov(t(f_hat[, -bp_funcional$outpoint])[, t1])
+cov_rob <- cov(t(f_hat[, -bp_funcional$outpoint]))
+# 
+# g1 <- plot_ly(x = ~t_rango[t1], y = ~t_rango[t1],
+#               z = ~cov_rob0, showlegend = FALSE)
+# g1 %>% add_surface() %>%
+#        layout(scene = list(xaxis = list(title = 'Emisión espectral'),
+#                                         yaxis = list(title = 'Emisión espectral'),
+#                                         zaxis = list(title = 'covarianza')))
+
+# -------------------------------------------------------- #
+# --------------- Prueba de una muestra -----------------· #
+# -------------------------------------------------------- #
+#    set.seed(314)
+#    t(mvtnorm::rmvnorm(n = 100, mean = rep(0, times = ncol(cov_rob0)), 
+#                       sigma = cov_rob0)) -> m
+#    matplot(x = t_rango[t1], y = m, 
+#            type = 'p', lty = 1, pch = 19, cex = 0.2, col = 'gray')
+#    ajuste_0 <- smooth.basis(argvals = t_rango[t1], 
+#                             y = m, fdParobj = base_bsp)
+#    # Funciones ajustadas
+#    f_0 <- eval.fd(evalarg = t_rango, fdobj = ajuste_0$fd)
+#    matlines(x = t_rango, y = f_0, type = 'l', lty = 1)
+#    
+#    fbplot(m)$outpoint
+#    
+#    # matplot(x = t_rango, y = f_hat, col = 'red', lwd = 0.5, add = TRUE, type = 'l')
+#    matplot(x = t_rango, y = t(datos1), type = 'p', 
+#            pch = 19, cex = 0.2, frame = FALSE, 
+#            main = 'Media y datos originales', 
+#            xlab = 'Emisión espectral', ylab = 'Fluoresencia',
+#            col = 'gray')
+
+
+### VAmos a intentar agregar esas putas líneas
+# Región 0.5
+#    cuant_50 <- cbind(apply(X = f_hat[, -centrales[1:134]], MAR = 1, min), 
+#                      apply(X = f_hat[, -centrales[1:134]], MAR = 1, max))
+#    # Rango intercuartílico
+#    iqr_f <- apply(cuant_50, MAR = 1, FUN = function(x) sum(c(-1, 1) * x))
+#    # Quitamos OUTliers
+#    f_sinOUT <- f_hat[, -bp_funcional$outpoint]
+#    # Cálculo de bigotes
+#    sapply(1:nrow(cuant_50), function(k) max(f_sinOUT[k, f_sinOUT[k, ] < cuant_50[k, 2] + 1.5*iqr_f[k]])) -> bigote_sup
+#    sapply(1:nrow(cuant_50), function(k) min(f_sinOUT[k, f_sinOUT[k, ] > cuant_50[k, 1] - 1.5*iqr_f[k]])) -> bigote_inf
+#    # Agregamos
+#    lines(x = t_rango, y = bigote_sup, lty = 2)
+#    lines(x = t_rango, y = bigote_inf, lty = 2)
+#    polygon(x = c(t_rango, t_rango[length(t_rango):1]), 
+#            y = c(cuant_50[, 1], (cuant_50[, 2])[length(t_rango):1]), lty = 2,
+#            border = 'midnightblue', angle = 45, col = 'black', density = 50)
+
+```
+
+
+
 
