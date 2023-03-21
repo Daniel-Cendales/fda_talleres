@@ -132,7 +132,7 @@ Veremos la media recortada, que corresponde al cálculo de la media despúes de 
 # Datos sin suavizar
 matplot(x = t_rango, y = f_hat[, centrales[1:26]], type = 'l', 
         pch = 19, cex = 0.2, frame = FALSE, lty = 1, lwd = 0.8,
-        col = 'cyan2', main = 'Media recortada y datos originales', 
+        col = 'cyan2', main = 'Media recortada', 
         xlab = 'Emisión espectral', ylab = 'Fluoresencia')
 # Media recortada
 y_mediarec <- apply(X = f_hat[, -centrales[1:26]], MARGIN = 1, mean)
@@ -143,7 +143,7 @@ lines(x = t_rango, y = y_mediarec, lwd = 1, col = 'blue')
 
 # Identificamos cada curva
 legend(x = 'topright', 
-       legend = c('Media recortada', 'Media', 'Datos originales'), 
+       legend = c('Media recortada', 'Media', 'Datos no considerados'), 
        lwd = c(1, 1, 0.8), col = c('blue', 'black', 'cyan2'), 
        lty = c(1, 2, 1), box.col = 'white') 
        #pch = 19, pt.cex = c(NA, NA, 0.2))
@@ -414,6 +414,53 @@ legend(legend = bp_funcional1$outpoint, x = 'topright', lwd = 3,
        cex = 0.8, box.col = 'white', lty = 1,
        bg = 'azure1')
 ```
+
+## La función mediana multivariada
+
+El nivel de excitación que habíamos elegido inicalmente fue de 340. Para llevar a cabo los procedimientos multivariados, tomamos otro nivel de onda correspondiente al valor 325. 
+
+Es decir que tenemos un conjunto de datos funcionales bivariado. Veamos rápidamente el nuevo conjunto de datos y los suavizamoentos correspondientes.
+
+```{r}
+# Hacemos la lectura de los datos
+datos2 <- read.table(colClasses = rep(c('NULL', 'numeric', 'NULL'), 
+                                      c(5, 1, 1)*571), file = ruta)
+
+# Visualizaciones
+par(mfrow = c(1, 2))
+
+matplot(x = t_rango, y = t(datos2), type = 'l', frame = FALSE,
+        xlab = 'Emisión Espectral', main = 'Nivel 325', ylab = '')
+
+# Ajuste
+bk2 <- c(275, 300, 330, 370, 400, 430, 470, 500, 520, 560)
+base_bsp2 <- create.bspline.basis(breaks = bk2, 
+                                  norder = 4)
+ajuste_detallado2 <- smooth.basis(argvals = t_rango, y = t(datos2), fdParobj = base_bsp2)
+
+f_hat2 <- eval.fd(evalarg = t_rango, fdobj = ajuste_detallado2$fd)
+
+matplot(x = t_rango, y = f_hat2, type = 'l', frame = FALSE,
+        xlab = 'Emisión Espectral', main = 'Curvas Suavizadas',
+        ylab = '')
+
+# Pasamos a datos multiv
+multi <- mfData(grid = t_rango, Data_list = list(X1 = t(f_hat), 
+                                                 X2 = t(f_hat2)))
+
+# Mediana multiv
+mediana_multi <- median_mfData(mfData = multi)
+```
+
+El gráfico respectivo de la mediana multivariada:
+
+```{r}
+plot(mediana_multi, main = 'Mediana multivariada', frame = FALSE,
+     lwd = 2, col = 'gray')
+```
+
+## Outliers multivariados
+
 
 # Artículo
 
