@@ -13,9 +13,7 @@ output:
 
 ```{r Configuraciones globales, echo = FALSE}
 # Configuraciones generales
-knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
-
-# Cargue de librerías
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE, results = 'hide')
 ```
 
 ```{r}
@@ -59,11 +57,9 @@ matplot(x = t_rango, y = t(datos1), type = 'p',
 Después de visualizar las funciones (sin suavizar) consideramos como más acertado usar una base de funciones *B-Spline* para llevar a cabo el suavizado, pues en los datos no se perciben comportamientos cíclicos (o sinusoidales). Como apunte adicional, mencionamos que para llevar a cabo el ajuste nos bastó con usar polinomios de grado 3 (orden 4) y para la parte que presentaba un apuntamiento muy alto usamos más *breakpoints*.
 
 ```{r Creación de base}
-library(fda)                    # Librería
-
 # Base que se va a usar
 bk <- c(275, 285, 300, 320, 360.5, 389, 470, 520, 560)
-bk1 <- c(seq(275, 389, by = 28.5), 470, 520, 560)
+# bk1 <- c(seq(275, 389, by = 28.5), 470, 520, 560)
 base_bsp <- create.bspline.basis(breaks = bk, 
                                  norder = 4)
 ```
@@ -73,8 +69,8 @@ A continuación podemos ver las versiones suavizadas de la muestra en cuestión.
 ```{r}
 ajuste <- Data2fd(y = as.matrix(t(datos1)), basisobj = base_bsp, 
                   argvals = t_rango)
-plot(ajuste, frame = FALSE, main = 'Curvas Suavizadas', ylab = 'Fluorescencia',
-     xlab = 'Emisión espectral')
+plot(ajuste, frame = FALSE, main = 'Curvas Suavizadas', 
+     ylab = 'Fluorescencia', xlab = 'Emisión espectral')
 ```
 
 Para contrastar las estimaciones, vamos a superponer los datos sin tratar, junto con las respectivas curvas suavizadas.
@@ -82,7 +78,7 @@ Para contrastar las estimaciones, vamos a superponer los datos sin tratar, junto
 ```{r}
 # Datos en bruto
 matplot(x = t_rango, y = t(datos1), type = 'p', 
-        pch = 19, cex = 0.2, frame = FALSE, 
+        pch = 19, cex = 0.1, frame = FALSE, 
         main = 'Muestras y curvas suavizadas asociadas', 
         xlab = 'Emisión espectral', ylab = 'Fluoresencia',
         col = 'black')
@@ -146,7 +142,8 @@ lines(x = t_rango, y = y_media, col = 'black', lwd = 1, lty = 2)
 lines(x = t_rango, y = y_mediarec, lwd = 1, col = 'blue')
 
 # Identificamos cada curva
-legend(x = 'topright', legend = c('Media recortada', 'Media', 'Datos originales'), 
+legend(x = 'topright', 
+       legend = c('Media recortada', 'Media', 'Datos originales'), 
        lwd = c(1, 1, 0.8), col = c('blue', 'black', 'cyan2'), 
        lty = c(1, 2, 1), box.col = 'white') 
        #pch = 19, pt.cex = c(NA, NA, 0.2))
@@ -176,30 +173,59 @@ matplot(x = t_rango, y = t(datos1), type = 'p',
 
 # Media y bandas
 lines(x = t_rango, y = y_media, col = 'black', lwd = 2, lty = 1)
-matlines(x = t_rango, y = cbind(y_media - 1.96*sqrt(f_var), y_media + 1.96*sqrt(f_var)), 
+matlines(x = t_rango, y = cbind(y_media - 1.96*sqrt(f_var), 
+                                y_media + 1.96*sqrt(f_var)), 
          col = 'blue', lty = 1, lwd = 2)
-legend(x = "topright", lty = 1, lwd = 2, col = c('blue', 'black'), box.col = 'white', 
-       legend = c('Media', 'Límites'), bg = 'gray')
+legend(x = "topright", lty = 1, lwd = 2, col = c('blue', 'black'), 
+       box.col = 'white', legend = c('Media', 'Límites'), bg = 'gray')
 ```
 
 ## Función de covarianza
 
 Mostramos la superficie obtenida. Con la función *persp* obtenemos una figura no muy agradable. Sin embargo, usaremos la función *plot_ly* que graficará la superficie en una página web y tomamos capturas de pantalla.
 
+Aprovechamos para visualizar las funciones de *varianza y covarianza*, y la matriz de *correlaciones*.
+
 ```{r}
 # Función de autocovarianza
 cov_f <- cov(t(f_hat))
+cor_f <- cor(t(f_hat))
 
 # persp(x = t_rango[seq(1, 571, by = 5)], y = t_rango[seq(1, 571, by = 5)], 
 #       z = z, phi = 25, theta = 44, xlab = 'Emisión espectral', 
 #       ylab = 'Emisión espectral', zlab = 'cov(t, s)', 
 #       ticktype = 'detailed', col = 'lightblue')
 
+# Covarianza
 g1 <- plot_ly(x = ~t_rango, y = ~t_rango, z = ~cov_f, showlegend = FALSE)
- g1 %>% add_surface() %>%
-    layout(scene = list(xaxis = list(title = 'Emisión espectral'),
-                                     yaxis = list(title = 'Emisión espectral'),
-                                     zaxis = list(title = 'covarianza')))
+g1 %>% add_surface() %>%
+  layout(scene = list(xaxis = list(title = 'Emisión espectral'),
+                                   yaxis = list(title = 'Emisión espectral'),
+                                   zaxis = list(title = 'covarianza')))
+
+# Correlación
+g2 <- plot_ly(x = ~t_rango, y = ~t_rango, z = ~cor_f, showlegend = FALSE)
+g2 %>% add_surface() %>%
+  layout(scene = list(xaxis = list(title = 'Emisión espectral'),
+                                   yaxis = list(title = 'Emisión espectral'),
+                                   zaxis = list(title = 'covarianza')))
+```
+
+Otra forma de visualizarlo sería usando mapas de calor. A continucación
+
+```{r}
+# Mapas de calor
+par(mfrow = c(1, 2))
+
+# Covarianzas
+image(x = t_rango, y = t_rango, z = cov_f, 
+      main = 'Varianzas y covarianzas', xlab = 'Emisión espectral', 
+      ylab = 'Emisión espectral', frame = FALSE)
+
+# Correlaciones
+image(x = t_rango, y = t_rango, z = cor_f, 
+      main = 'Matriz de correlaciones', xlab = 'Emisión espectral', 
+      ylab = 'Emisión espectral', frame = FALSE)
 ```
 
 ## La función de mediana
@@ -211,10 +237,10 @@ Corresponde a la estimación con la mayor densidad de todas las estimaciones.
 y_mediana <- f_hat[, which.max(bp_funcional$depth)]
 
 # Grafiquemos las 3 funciones
-matplot(x = t_rango, y = cbind(y_mediarec, y_media, y_mediana), lwd = c(1, 1, 2),
-        col = c('black', 'blue', 'brown'), type = 'l', frame = FALSE, lty = 1, 
-        xlab = 'Emisión espectral', ylab = 'Fluoresencia', 
-        main = 'Medidas de tendencia central')
+matplot(x = t_rango, y = cbind(y_mediarec, y_media, y_mediana), 
+        lwd = c(1, 1, 2), col = c('black', 'blue', 'brown'), 
+        type = 'l', frame = FALSE, lty = 1, xlab = 'Emisión espectral', 
+        ylab = 'Fluoresencia', main = 'Medidas de tendencia central')
 
 legend(x = 'topright', legend = c('Mediana', 'Media', 'Media recortada'), 
        lwd = c(2, 1, 1), col = c('brown', 'blue', 'black'),
@@ -258,7 +284,8 @@ cuant_75 <- cbind(apply(X = f_hat[, -centrales[1:67]], MAR = 1, min),
                   apply(X = f_hat[, -centrales[1:67]], MAR = 1, max))
 polygon(x = c(t_rango, t_rango[length(t_rango):1]), 
         y = c(cuant_75[, 1], (cuant_75[, 2])[length(t_rango):1]), 
-        border = 'midnightblue', angle = 45, col = 'midnightblue', density = 50)
+        border = 'midnightblue', angle = 45, col = 'midnightblue', 
+        density = 50)
 ```
 
 ## Boxplot funcional y outliers
@@ -274,9 +301,11 @@ fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500),
        color = adjustcolor('brown', alpha.f = 0.2),
        xlab = 'Emisión espectral', 
        ylab = 'Fluoresencia') -> bp_funcional
-matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = c(1, 2, 2, 1, 1), 
-         lwd = 3,
+
+matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], 
+         lty = c(1, 2, 2, 1, 1),  lwd = 3,
          col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'))
+
 legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 3,
        col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'), 
        ncol = 2, cex = 0.8, box.col = 'white', lty = c(1, 2, 2, 1, 1),
@@ -287,9 +316,48 @@ Podemos resaltar que los individuos 14 y 16 están entre los 3 elementos con men
 
 ## Boxplot funcional ajustado y outliers
 
-No logramos hacer el cálculo de la matriz de covarianzas robusta y por ende no pudimos presentar la metodología propuesta en las diapositivas.
+1. Debido a las dificultades que encontramos para implementar la estimación de la *matriz de varianzas y covarianzas robusta* usamos dos formas. Primero con el paquete *roahd*.
 
-Como alternativa, proponemos basarnos en técnicas de remuestreo para estimar el boxplot sin usar los que parecen ser datos atípicos y definir el valor del *hiperparámetro* F.
+La tasa positiva de outliers que usamos fue de 99.7%.
+
+```{r}
+# Librería especial
+library(roahd)
+
+# Estructura
+f_d <- fData(grid = t_rango, values = t(f_hat))
+
+pbf_1 <- fbplot(Data = f_d, Depths = 'MBD', 
+                adjust = list(N_trials = 1, trial_size = 100,
+                              TPR = 0.007), display = FALSE)
+
+f <- pbf_1$Fvalue
+```
+
+Con lo que obtuvimos un valor para el hiperparámetro *F* de `r round(f, 4)`.
+
+```{r}
+bp_f1 <- fda::fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
+                     frame = FALSE, main = 'Boxplot funcional', 
+                     xlim = range(t_rango), factor = f,
+                     barcol = adjustcolor('midnightblue', alpha.f = 0.2), 
+                     color = adjustcolor('brown', alpha.f = 0.2),
+                     xlab = 'Emisión espectral', 
+                     ylab = 'Fluoresencia')
+
+matlines(x = t_rango, y = f_hat[, bp_f1$outpoint], 
+         lty = 1,  lwd = 2,
+         col = c('blue4', 'deeppink4', 'indianred4'))
+
+legend(legend = bp_f1$outpoint, x = 'topright', lwd = 2,
+       col = c('blue4', 'deeppink4', 'indianred4'), 
+       ncol = 2, cex = 0.8, box.col = 'white', lty = 1,
+       bg = 'azure1')
+```
+
+Vemos que ajustando el factor, solo obtenemos 3 datos atípicos. Justamente los 3 datos que habíamos catalogados como outliers parciales (y que en cierta medida, era más sencillo justificar porqué eran outliers).
+
+2. Como alternativa, proponemos basarnos en técnicas de remuestreo para estimar el boxplot sin usar los que parecen ser datos atípicos (es decir, sin considerar los 5 datos que considerabamos como outliers) y definir el valor del *hiperparámetro* F.
 
 Los gráficos nos ayudan a ver el efecto de haber cambiado el factor $F$ de 1.5 a 1.83 y vemos que la proporción de datos catalogados como atípicos cuando no lo son pasa de un 5% a un 2%.
 
@@ -308,7 +376,7 @@ f_rem <- f_hat[, rem]
 
 # Boxplot
 par(mfrow = c(1, 2))
-fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
+fda::fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
        frame = FALSE, xlab = 'Emisión espectral', cex.axis = 0.7,
        cex.lab = 0.7,
        ylab = 'Fluoresencia', main = 'Remuestreo')$outpoint
@@ -317,8 +385,8 @@ legend(x = 'topright', legend = 'Outliers: 5%', box.col = 'white',
        bg = 'cyan2', cex = 0.7)
 
 # Cambiamos los factores
-fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
-       frame = FALSE, xlab = 'Emisión espectral', factor = 1.83,
+fda::fbplot(f_rem, x = t_rango, xlim = range(t_rango), ylim = c(-5, 500), 
+       frame = FALSE, xlab = 'Emisión espectral', factor = 1.8,
        cex.axis = 0.7, cex.lab = 0.7,
        ylab = 'Fluoresencia', main = 'Reajuste de factor F')$outpoint
 # colnames(f_rem)[c(17, 40, 55, 69, 85)]
@@ -330,19 +398,19 @@ Mostramos a continuación el boxplot resultante al modificar el factor F.
 
 ```{r}
 # Boxplot funcional
-fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
+par(mfrow = c(1, 1))
+fda::fbplot(fit = f_hat, x = t_rango, ylim = c(-10, 500), 
        frame = FALSE, main = 'Boxplot funcional ajustado', 
        xlim = range(t_rango), factor = 1.83,
        outliercol = 'white', 
        barcol = adjustcolor('midnightblue', alpha.f = 0.2), 
        color = adjustcolor('brown', alpha.f = 0.2),
        xlab = 'Emisión espectral', 
-       ylab = 'Fluoresencia') -> bp_funcional
-matlines(x = t_rango, y = f_hat[, bp_funcional$outpoint], lty = 1, 
-         lwd = 3,
-         col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'))
-legend(legend = bp_funcional$outpoint, x = 'topright', lwd = 3,
-       col = c('blue4', 'deeppink4', 'indianred4', 'chocolate4', 'gray15'), 
+       ylab = 'Fluoresencia') -> bp_funcional1
+matlines(x = t_rango, y = f_hat[, bp_funcional1$outpoint], lty = 1, 
+         lwd = 3, col = c('blue4', 'deeppink4'))
+legend(legend = bp_funcional1$outpoint, x = 'topright', lwd = 3,
+       col = c('blue4', 'deeppink4'), 
        cex = 0.8, box.col = 'white', lty = 1,
        bg = 'azure1')
 ```

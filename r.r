@@ -2,24 +2,25 @@
 library(fda)
 
 ruta <- './Datos/datos.txt'
-datos1 <- read.table(colClasses = rep(c('NULL', 'numeric'), 
-                                      c(6, 1)*571), file = ruta)
+datos1 <- read.table(colClasses = rep(c('numeric', 'NULL'), 
+                                      c(1, 6)*571), file = ruta)
 # Gráficos
 t_rango <- seq(275, 560, by = 0.5)
-matplot(x = t_rango, y = t(datos1), type = 'p', 
+matplot(x = t_rango, y = t(datos1), type = 'l', lwd = 2, lty = 1,
         pch = 19, cex = 0.05, frame = FALSE, 
         main = 'Datos observados', col = 'gray',
         xlab = 'Emisión espectral', ylab = 'Fluoresencia')
 
 # Base
-base_bsp <- create.bspline.basis(breaks = c(seq(275, 389, length = 28.5), 
-                                            470, 520, 560), norder = 4)
+bk1 <- c(seq(275, 361, by = 1), 400, 500, 560)
+base_bsp <- create.bspline.basis(breaks = bk1, norder = 4)
+
 
 # Ajuste
 ajuste <- Data2fd(y = as.matrix(t(datos1)), basisobj = base_bsp, 
                   argvals = t_rango)
 lines(ajuste, frame = FALSE, main = 'Curvas Suavizadas', 
-      ylab = 'Fluorescencia', xlab = 'Emisión espectral')
+      ylab = 'Fluorescencia', xlab = 'Emisión espectral', col = 'black')
 
 
 # Matriz de ajustes individuales
